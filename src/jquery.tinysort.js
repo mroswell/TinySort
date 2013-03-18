@@ -1,4 +1,4 @@
-/*! TinySort 1.5.2
+/*! TinySort 1.5.2d
 * Copyright (c) 2008-2013 Ron Valstar http://tinysort.sjeiti.com/
 *
 * Dual licensed under the MIT and GPL licenses:
@@ -31,6 +31,9 @@
 		,mathmn = Math.min					// minify placeholder
 		,rxLastNr = /(-?\d+\.?\d*)$/g		// regex for testing strings ending on numbers
 		,rxLastNrNoDash = /(\d+\.?\d*)$/g	// regex for testing strings ending on numbers ignoring dashes
+		,rxSplitNrs = /-?\d+|-*\D*[^-\d]/g
+		,rxSplitPosNrs = /\D+|\d+/g
+		,rxAllNoneDigits = /^\D+$/g
 	/*
 	issue #44... maybe first match this
 		,rxSplitNrs = /-?\d+|-*\D*[^-\d]/g      makes	["eiw", "-73", "-ewe", "-133"]
@@ -42,6 +45,9 @@
 	then make \d of equal length by pre-padding 0
 	...
 	sort
+	*/
+	/*
+	http://jsperf.com/javascript-sort
 	*/
 		,aPluginPrepare = []
 		,aPluginSort = []
@@ -121,6 +127,7 @@
 						var oPoint = aCriteria[iCriteria]
 							,oSett = oPoint.oSettings
 							,rxLast = oSett.ignoreDashes?rxLastNrNoDash:rxLastNr
+							,rxSplit = oSett.ignoreDashes?rxSplitPosNrs:rxSplitNrs
 						;
 						//
 						fnPluginPrepare(oSett);
@@ -136,6 +143,34 @@
 								,sB = !oSett.cases?toLowerCase(b.s[iCriteria]):b.s[iCriteria];
 							// maybe force Strings
 							if (!oSettings.forceStrings) {
+								///////////////////////////////////////////////////////// test split
+								var aA = sA.match(rxSplit)
+									,aB = sB.match(rxSplit)
+								;
+								for (var i=0,l=mathmn(aA.length,aB.length);i<l;i++) {
+									var  sAA = aA[i]
+										,sBB = aB[i]
+									;
+									if (sAA!=sBB) {
+										var bA = sAA.match(rxAllNoneDigits)
+											,bB = sBB.match(rxAllNoneDigits)
+											,iAB = sAA.length-sBB.length
+										;
+										if (bA&&bB) {
+											break;
+										} else if (!bA&&!bB&&iAB!==0) {
+											if (iAB>0) {
+												aB[i] = Array(iAB+1).join('0') + sBB;
+												sB = aB.join();
+											} else {
+												aA[i] = Array(1-iAB).join('0') + sAA;
+												sA = aA.join();
+											}
+										}
+									}
+								}
+								///////////////////////////////////////////////////////// end test split
+
 								// maybe mixed
 								var  aAnum = isString(sA)?sA&&sA.match(rxLast):fls
 									,aBnum = isString(sB)?sB&&sB.match(rxLast):fls;
